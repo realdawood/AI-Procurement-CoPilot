@@ -1,0 +1,1277 @@
+{
+  "name": "AI Procurement Copilot",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2480,
+        48
+      ],
+      "id": "b11478bd-7ef2-441a-9753-82bb27959c9c",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0",
+          "mode": "list",
+          "cachedResultName": "RFQ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "RFQ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -2256,
+        48
+      ],
+      "id": "560b8569-b80c-4d0b-a470-7072db2fd004",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GjZXCuLAqqBuK9I8",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "dawoodxd48@gmail.com",
+        "subject": "Procurement of new Items",
+        "message": "=Dear Vendor,  Please provide your quotation for the following items: \nRFQ ID : {{ $json['RFQ ID'] }}\nProduct : {{ $json.Product }}\nQuantity : {{ $json.Quantity }}\nBudget : {{ $json.Budget }}\nKindly include:  Unit & total price Brand/model Warranty Delivery time Payment terms  Please send your quotation by {{ $json.Deadline }}.  Thank you.  Procurement Team ABC Technologies Ltd. ",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -2032,
+        48
+      ],
+      "id": "b3fc8456-08d1-45c7-8833-9aba1ea3aeba",
+      "name": "Send a message",
+      "webhookId": "32660571-a3c5-4c51-bee7-17334393e982",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Vzk0F92Kr3X3EbwU",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -2480,
+        1440
+      ],
+      "id": "e0708522-aa18-4efe-ab2f-45f3889a8da3",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Vzk0F92Kr3X3EbwU",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "messageId": "={{ $json.id }}",
+        "simple": false,
+        "options": {
+          "downloadAttachments": true
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -2256,
+        1440
+      ],
+      "id": "6d7605f0-c608-4439-9885-5a488c17a697",
+      "name": "Get a message",
+      "webhookId": "7c24d7e9-7d95-41c9-bb3e-25cfc7f74043",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Vzk0F92Kr3X3EbwU",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "extract",
+        "operation": "AI Document Parser",
+        "binaryPropertyName": "attachment_0",
+        "aiAnalyzerId": "default_invoice_extraction"
+      },
+      "type": "n8n-nodes-pdf4me.PDF4me",
+      "typeVersion": 1,
+      "position": [
+        -2032,
+        1440
+      ],
+      "id": "82ae8c0b-32bb-4b0e-94f8-816ade60daec",
+      "name": "AI document parser",
+      "credentials": {
+        "pdf4meApi": {
+          "id": "cUwv4DxdG1zXZ78T",
+          "name": "PDF4ME account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Extract procurement information from the following vendor quotation.\n\nQuotation Text:\n\n{{ $json.Document.DocText }}\n",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an AI Procurement Data Extraction Specialist.\n\nYour responsibility is to analyze vendor quotations (RFQs), proposals, and commercial offers and extract structured procurement information accurately.\n\nRules:\n\n* Extract information only from the provided quotation.\n* Never guess or invent values.\n* If a value cannot be found, return null.\n* Ignore company logos, headers, footers, page numbers, signatures, and marketing text unless they contain relevant procurement information.\n* Normalize dates to YYYY-MM-DD format whenever possible.\n* Convert numeric values into numbers without currency symbols or commas.\n* Keep currency codes as ISO format (USD, EUR, PKR, GBP, etc.) when identifiable.\n* Delivery time should be returned as the number of days only.\n* Preserve vendor names exactly as written.\n* If multiple products exist, calculate the grand total from the quotation if available. Do not sum line items unless the grand total is missing.\n* Do not explain your reasoning.\n* Return only the structured data defined by the Structured Output Parser.\n\nImportant Rules:\n\n* Every field defined in the Structured Output Parser must always be returned.\n* If a field is not present in the quotation, return an empty string (\"\") for text fields.\n* If a numeric field cannot be determined, return an empty string (\"\") instead of guessing.\n* Never generate or infer missing information.\n* Do not use placeholders like \"N/A\", \"Unknown\", \"-\", or null.\n* Return only valid JSON matching the schema exactly.\n\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -1808,
+        1120
+      ],
+      "id": "58dd4e5e-0e41-454b-a6fc-cf8f14994fc9",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -1648,
+        1760
+      ],
+      "id": "a540a8fa-ec2a-44ae-818a-1b080ad4d32c",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "id9GoMjuen5HbQ0E",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0",
+          "mode": "list",
+          "cachedResultName": "RFQ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "RFQ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.7,
+      "position": [
+        -1728,
+        1344
+      ],
+      "id": "2602e7aa-3dae-4263-8a24-82ff99aed6b4",
+      "name": "Get row(s) in sheet in Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GjZXCuLAqqBuK9I8",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserAutofixing",
+      "typeVersion": 1,
+      "position": [
+        -1600,
+        1344
+      ],
+      "id": "9c0be060-0920-42f6-b6c7-769678027e92",
+      "name": "Auto-fixing Output Parser"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"rfq_id\": \"\",\n  \"vendor_name\": \"ABC Technologies\",\n  \"vendor_email\": \"\",\n  \"quotation_number\": \"QT-145\",\n  \"quotation_date\": \"\",\n  \"quotation_valid_until\": \"\",\n  \"currency\": \"USD\",\n  \"product_name\": \"Dell Latitude 5450\",\n  \"product_description\": \"\",\n  \"quantity\": 100,\n  \"unit_price\": \"\",\n  \"total_price\": 92000,\n  \"delivery_days\": \"\",\n  \"payment_terms\": \"\",\n  \"warranty\": \"\",\n  \"incoterms\": \"\",\n  \"country_of_origin\": \"\",\n  \"discount\": \"\",\n  \"tax\": \"\",\n  \"shipping_cost\": \"\",\n  \"lead_time\": \"\",\n  \"remarks\": \"\"\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1520,
+        1552
+      ],
+      "id": "3e320173-6113-4df3-87de-70951dbc1c94",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1fb21a88-98c6-43ae-9434-4a4ba5b3927e",
+              "name": "output.vendor_name",
+              "value": "={{ $json.output.vendor_name }}",
+              "type": "string"
+            },
+            {
+              "id": "9ed4997f-b37a-46d6-89f6-a1276123d3cb",
+              "name": "output.vendor_email",
+              "value": "={{ $json.output.vendor_email }}",
+              "type": "string"
+            },
+            {
+              "id": "fa4ceb55-3c9a-4145-8035-d5fa31c6730e",
+              "name": "output.total_price",
+              "value": "={{ $json.output.total_price }}",
+              "type": "number"
+            },
+            {
+              "id": "e0cf61de-af2a-4df4-bed8-749e63d4b305",
+              "name": "output.delivery_days",
+              "value": "={{ $json.output.delivery_days }}",
+              "type": "string"
+            },
+            {
+              "id": "09692078-7f7c-4371-90dc-9b20c3d6383d",
+              "name": "output.warranty",
+              "value": "={{ $json.output.warranty }}",
+              "type": "string"
+            },
+            {
+              "id": "e57bc690-ce80-4636-91c8-dcb95625f366",
+              "name": "output.rfq_id",
+              "value": "={{ $json.output.rfq_id }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1152,
+        1440
+      ],
+      "id": "ecc93c48-b1b9-4cf0-b5e2-af742fc04014",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0",
+          "mode": "list",
+          "cachedResultName": "RFQ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1983655843,
+          "mode": "list",
+          "cachedResultName": "Quotation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0/edit#gid=1983655843"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "RFQ": "={{ $json.output.rfq_id }}",
+            "Vendor": "={{ $json.output.vendor_name }}",
+            "Price": "={{ $json.output.total_price }}",
+            "Delivery": "={{ $json.output.delivery_days }}",
+            "Warranty": "={{ $json.output.warranty }}"
+          },
+          "matchingColumns": [
+            "RFQ"
+          ],
+          "schema": [
+            {
+              "id": "RFQ",
+              "displayName": "RFQ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Vendor",
+              "displayName": "Vendor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Price",
+              "displayName": "Price",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Delivery",
+              "displayName": "Delivery",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Warranty",
+              "displayName": "Warranty",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -928,
+        1440
+      ],
+      "id": "fc621512-9529-4855-ad15-7680a8163fc1",
+      "name": "Append or update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GjZXCuLAqqBuK9I8",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtHour": 9
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -2480,
+        592
+      ],
+      "id": "af7b1fe5-57a7-4de1-b179-a341942895f2",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0",
+          "mode": "list",
+          "cachedResultName": "RFQ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "RFQ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -2256,
+        592
+      ],
+      "id": "1eee09dd-2383-4eca-938c-68e6b45ac812",
+      "name": "Get row(s) in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GjZXCuLAqqBuK9I8",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -1728,
+        912
+      ],
+      "id": "82a99f29-2059-43a9-9302-6b2dd5706b9c",
+      "name": "OpenRouter Chat Model1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "id9GoMjuen5HbQ0E",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=RFQ Details : {{ $('Get row(s) in sheet1').item.json['RFQ ID'] }}{{ $('Get row(s) in sheet1').item.json.Product }}{{ $('Get row(s) in sheet1').item.json.Quantity }}{{ $('Get row(s) in sheet1').item.json.Deadline }}{{ $('Get row(s) in sheet1').item.json.Budget }}\n\nQuotation Details : {{ $json.RFQ }}{{ $json.Vendor }}{{ $json.Price }}{{ $json.Delivery }}{{ $json.Warranty }}\n\n",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "You are an experienced Procurement and Sourcing Analyst.\n\nYour responsibility is to compare quotations received from multiple vendors for the same RFQ and recommend the most suitable supplier.\n\nYou must evaluate quotations objectively using procurement best practices.\n\nEvaluation Criteria (highest priority first):\n\n1. Technical compliance with the requested product or service.\n2. Total quoted price.\n3. Delivery time.\n4. Warranty period.\n5. Payment terms.\n6. Quotation validity.\n7. Additional benefits or services.\n8. Commercial risks or missing information.\n\nRules:\n\n- Compare every quotation fairly.\n- Never invent information.\n- If a quotation does not contain a required field, treat it as unavailable.\n- Explain why one vendor ranks above another.\n- Penalize quotations that contain missing critical information.\n- Do not recommend a vendor only because they have the lowest price.\n- Consider overall value instead of only cost.\n- Rank every vendor from best to worst.\n- Calculate an overall procurement score between 0 and 100.\n- Keep recommendations professional and suitable for procurement managers.\n- Return ONLY the structured JSON defined by the Structured Output Parser.\n- Do not include markdown.\n- Do not explain outside the JSON response."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -1808,
+        272
+      ],
+      "id": "159fc4b0-0dc3-4746-8471-3189d1a14087",
+      "name": "AI Agent1"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0",
+          "mode": "list",
+          "cachedResultName": "RFQ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1983655843,
+          "mode": "list",
+          "cachedResultName": "Quotation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0/edit#gid=1983655843"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -2032,
+        592
+      ],
+      "id": "56cc3a91-d870-4e29-8457-263b40a591de",
+      "name": "Get row(s) in sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GjZXCuLAqqBuK9I8",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserAutofixing",
+      "typeVersion": 1,
+      "position": [
+        -1728,
+        496
+      ],
+      "id": "9c04f7f9-1b26-492e-83eb-bbc16e82abb9",
+      "name": "Auto-fixing Output Parser1"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"rfq_id\": \"RFQ-001\",\n  \"recommended_vendor\": \"ABC Technologies\",\n  \"recommended_vendor_score\": 94,\n  \"recommendation_summary\": \"ABC Technologies offers the best balance between price, delivery time and warranty.\",\n  \"comparison_table\": [\n    {\n      \"vendor_name\": \"ABC Technologies\",\n      \"score\": 94,\n      \"price\": 92000,\n      \"delivery_days\": 14,\n      \"warranty\": \"3 Years\",\n      \"payment_terms\": \"Net 30\",\n      \"strengths\": \"Lowest price and longest warranty\",\n      \"weaknesses\": \"Delivery is slower than Vendor B\",\n      \"risk_level\": \"Low\",\n      \"ranking\": 1\n    },\n    {\n      \"vendor_name\": \"Global IT Solutions\",\n      \"score\": 90,\n      \"price\": 94000,\n      \"delivery_days\": 10,\n      \"warranty\": \"2 Years\",\n      \"payment_terms\": \"Advance 50%\",\n      \"strengths\": \"Fast delivery\",\n      \"weaknesses\": \"Higher price and shorter warranty\",\n      \"risk_level\": \"Medium\",\n      \"ranking\": 2\n    }\n  ],\n  \"procurement_notes\": \"Both vendors meet the technical requirements. Vendor A provides better long-term value.\",\n  \"decision\": \"Recommend for Approval\"\n}",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        -1648,
+        704
+      ],
+      "id": "07d5f806-95a8-43a0-a5e8-649e2d569498",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0",
+          "mode": "list",
+          "cachedResultName": "RFQ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1103524732,
+          "mode": "list",
+          "cachedResultName": "Recommendation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0/edit#gid=1103524732"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "RFQ ID": "={{ $('AI Agent1').item.json.output.rfq_id }}",
+            "Vendor Recommendation": "={{ $('AI Agent1').item.json.output.recommended_vendor }}",
+            "Recommendation Score": "={{ $('AI Agent1').item.json.output.recommended_vendor_score }}",
+            "Summary": "={{ $('AI Agent1').item.json.output.recommendation_summary }}"
+          },
+          "matchingColumns": [
+            "RFQ ID"
+          ],
+          "schema": [
+            {
+              "id": "RFQ ID",
+              "displayName": "RFQ ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Vendor Recommendation",
+              "displayName": "Vendor Recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recommendation Score",
+              "displayName": "Recommendation Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1280,
+        592
+      ],
+      "id": "6aeefbc0-d5ce-488a-b34a-dd01bb16418d",
+      "name": "Append or update row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GjZXCuLAqqBuK9I8",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "zdnmaall@gmail.com",
+        "subject": "=Procurement Approval Required – RFQ {{ $('Get row(s) in sheet1').item.json['RFQ ID'] }}",
+        "message": "=Dear Procurement Manager,  A vendor comparison has been completed for RFQ {{ $('Get row(s) in sheet1').item.json['RFQ ID'] }}, and the AI Procurement Copilot has generated a recommendation based on price, delivery time, warranty, payment terms, and overall commercial value.  Recommended Vendor: {{ $json['Vendor Recommendation'] }}  Procurement Score: {{ $json['Recommendation Score'] }}/100  Recommendation Summary: {{ $json.Summary }}  Please review the recommendation and approve or reject the procurement decision.  Thank you.  Best regards,  AI Procurement Copilot Procurement Automation System",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -1056,
+        592
+      ],
+      "id": "300b9248-67c8-4270-8df4-a3b748eac4ed",
+      "name": "Send a message1",
+      "webhookId": "db506c67-a10a-48f6-bf46-143c119c91b7",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Vzk0F92Kr3X3EbwU",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -2480,
+        2080
+      ],
+      "id": "1e138726-ed89-494e-9d3d-4012951bef06",
+      "name": "When chat message received",
+      "webhookId": "e2f4d49e-1de7-45d2-b61c-3f34f84c9f26"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Analyze this input of accepted or rejected answer {{ $json.chatInput }}",
+        "options": {
+          "systemMessage": "You are a procurement assistant who will analyze the answer from chat input and return only in word if it is accepted output will be \"Accepted\" if it is rejected, it will be \"Rejected\". no explanation no anything else just simple accept or reject response"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        -2256,
+        2080
+      ],
+      "id": "36a36978-82fe-4dd9-8bd7-346aef3c9656",
+      "name": "AI Agent2"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-oss-120b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -2176,
+        2304
+      ],
+      "id": "945c2fc6-73b1-4da5-9fab-015ea1a6d600",
+      "name": "OpenRouter Chat Model2",
+      "credentials": {
+        "openRouterApi": {
+          "id": "id9GoMjuen5HbQ0E",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "779b6639-4d25-463a-aead-e682410a3e7a",
+              "leftValue": "={{ $json.output }}",
+              "rightValue": "Accepted",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -1904,
+        2080
+      ],
+      "id": "3ca1bf89-e65c-435a-9d54-733d465d7bd1",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0",
+          "mode": "list",
+          "cachedResultName": "RFQ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1103524732,
+          "mode": "list",
+          "cachedResultName": "Recommendation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0/edit#gid=1103524732"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "={{ $json.output }}"
+          },
+          "matchingColumns": [
+            "Status"
+          ],
+          "schema": [
+            {
+              "id": "RFQ ID",
+              "displayName": "RFQ ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Vendor Recommendation",
+              "displayName": "Vendor Recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recommendation Score",
+              "displayName": "Recommendation Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1680,
+        1984
+      ],
+      "id": "6b2cf58c-e7cd-454f-bbfa-d4c91a0a01b8",
+      "name": "Append or update row in sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GjZXCuLAqqBuK9I8",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0",
+          "mode": "list",
+          "cachedResultName": "RFQ",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1103524732,
+          "mode": "list",
+          "cachedResultName": "Recommendation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1o7h2cO0NZt6cKT4s0KKYhvbkHgs6K212xPKGSyOxhC0/edit#gid=1103524732"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "={{ $json.output }}"
+          },
+          "matchingColumns": [
+            "Status"
+          ],
+          "schema": [
+            {
+              "id": "RFQ ID",
+              "displayName": "RFQ ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Vendor Recommendation",
+              "displayName": "Vendor Recommendation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Recommendation Score",
+              "displayName": "Recommendation Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Summary",
+              "displayName": "Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1680,
+        2176
+      ],
+      "id": "0f6be9d9-8af7-4be1-876d-58eacdc9f90f",
+      "name": "Append or update row in sheet3",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "GjZXCuLAqqBuK9I8",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const now = new Date();\n\nconst year = now.getFullYear();\nconst month = String(now.getMonth() + 1).padStart(2, '0');\nconst day = String(now.getDate()).padStart(2, '0');\n\nconst random = Math.floor(1000 + Math.random() * 9000);\n\nreturn [{\n  json: {\n    purchase_order_number: `PO-${year}${month}${day}-${random}`\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1456,
+        1984
+      ],
+      "id": "6527b0bd-dc36-4139-8913-03a94b067d86",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "sendTo": "zdnmaall@gmail.com",
+        "subject": "gsgsg",
+        "message": "adsfgsdgf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        -1232,
+        1984
+      ],
+      "id": "21d008e7-d069-457b-ae09-4749b8223b35",
+      "name": "Send a message2",
+      "webhookId": "b0fb6a4c-0bb1-4084-b024-f27c5be1ed4c",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Vzk0F92Kr3X3EbwU",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a message": {
+      "main": [
+        [
+          {
+            "node": "AI document parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI document parser": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Auto-fixing Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet in Google Sheets": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-fixing Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Auto-fixing Output Parser",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Auto-fixing Output Parser1",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet2": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-fixing Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Auto-fixing Output Parser1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent2": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Append or update row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append or update row in sheet3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append or update row in sheet2": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "c8f59e19-a4d9-4b97-9516-4ac43f7ddc45",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3dc2c7a8999721ce9223382461679639114a10ffe38b5e418447b928c8b5c152"
+  },
+  "nodeGroups": [],
+  "id": "n3NnYtieV8NMAJEe",
+  "tags": []
+}
